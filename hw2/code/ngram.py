@@ -83,8 +83,6 @@ class Ngram(LangModel):
         # Collect the relevant part of the sentence given the ngram model
         context = self.get_context(context)
 
-        logprob = 0
-        cond_prob = 0
         word_context = self.counts[context].get(word, None)
         context_count = self.counts_totals.get(context, None)
         uni_word_count = self.unigram_counts.get(word, None)
@@ -97,20 +95,4 @@ class Ngram(LangModel):
                 if context_count != 0 else 0
 
         logprob = math.log(cond_prob) if cond_prob != 0 else float('-inf')
-        # --------------------------------------------------------------
-        # TODO: finish implementing this part to complete
-        # --------------------------------------------------------------
-        #  Ngram cond_logprob. To do this you will have to:
-        #  * Compute the probability of the word given context for the
-        #    current model.
-        #    Hint: use `self.counts.get` to obtain the next word
-        #          predictions based on `context`)
-        #  * For the case where `context` does not exist in the model,
-        #    compute the add-lambda smoothing using self.llambda,
-        #    self.unigram_counts, and self.unigram_total
-        #  * For the case where `context` was seen during training,
-        #    compute the probability, p_model(word|context).
-        # --------------------------------------------------------------
-        # raise NotImplementedError("TO BE IMPLEMENTED BY THE STUDENT")
-        # --------------------------------------------------------------
         return logprob

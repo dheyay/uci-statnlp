@@ -1,3 +1,5 @@
+import math
+
 from lm import LangModel
 from ngram import Ngram
 from typing import List
@@ -37,28 +39,15 @@ class InterpNgram(LangModel):
 
     def cond_logprob(self, word: str, context: List[str]) -> float:
         context = self.model.get_context(context)
+        cur_model_word_context = self.model.counts[context].get(word, None)
+        cur_context_count = self.model.counts_totals.get(context, None)
+        if cur_model_word_context is None: cur_model_word_context = 0
 
-        logprob = 0
-        # ---------------------------------------------------------------------
-        # TODO: finish implementing this part to complete
-        # ---------------------------------------------------------------------
-        #  Interpolated cond_logprob. To do this you will have to:
-        #  * Compute the probability of the word given context for the current
-        #    model. (Hint: use `self.model.counts.get` to obtain the next word
-        #    predictions based on `context`)
-        #  * If the context does not exist in, backoff to `self.backoff_model`.
-        #  * If the context exists, compute the next-word probability estimate
-        #    using p_{K}(w|context) (self.model) and multiply it by alpha.
-        #  * Compute the probability assigned by a lower order interpolated
-        #    n-gram model and multiply it by (1-\alpha) as follows:
-        #    (1-alpha) * I_{K-1}(w|context_{-(k-2):}).
-        #    (Hint: use the self.backoff_model to compute this probability).
-        #
-        # Note: Remember that the distributions are in logprobabilities.
-        # Instead of exponentiating, summing the probabilities and then taking
-        # the log again, a more stable operation is to apply logsumexp or, in
-        # numpy, the `np.logaddexp`.
-        # ---------------------------------------------------------------------
-        raise NotImplementedError("TO BE IMPLEMENTED BY THE STUDENT")
-        # ---------------------------------------------------------------------
-        return logprob
+        if cur_context_count is None:
+            cur_model_prob = math.exp(self.backoff_model.cond_logprob(word, context))
+        else:
+            cur_model_prob = math.exp(self.model.cond_logprob(word, context))
+
+        log_prob = (self.alpha * cur_model_prob) + ((1-self.alpha) * math.exp(self.backoff_model.cond_logprob(word, context)))
+        log_prob = math.log(log_prob) if log_prob != 0 else float('-inf')
+        return log_prob
