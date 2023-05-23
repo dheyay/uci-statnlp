@@ -1,7 +1,7 @@
 from lm import LangModel
 from collections import defaultdict
 from typing import Dict, List, Tuple
-
+import math
 import numpy as np
 
 
@@ -84,6 +84,19 @@ class Ngram(LangModel):
         context = self.get_context(context)
 
         logprob = 0
+        cond_prob = 0
+        word_context = self.counts[context].get(word, None)
+        context_count = self.counts_totals.get(context, None)
+        uni_word_count = self.unigram_counts.get(word, None)
+        if uni_word_count is None: uni_word_count = 0
+        if word_context is None: word_context = 0
+        if context_count is None:
+                cond_prob = (uni_word_count + self.llambda) / (self.unigram_total + (self.llambda * self.vocab_size))
+        else:
+            cond_prob = (word_context + self.llambda) / (context_count + (self.llambda * self.vocab_size)) \
+                if context_count != 0 else 0
+
+        logprob = math.log(cond_prob) if cond_prob != 0 else float('-inf')
         # --------------------------------------------------------------
         # TODO: finish implementing this part to complete
         # --------------------------------------------------------------
@@ -98,6 +111,6 @@ class Ngram(LangModel):
         #  * For the case where `context` was seen during training,
         #    compute the probability, p_model(word|context).
         # --------------------------------------------------------------
-        raise NotImplementedError("TO BE IMPLEMENTED BY THE STUDENT")
+        # raise NotImplementedError("TO BE IMPLEMENTED BY THE STUDENT")
         # --------------------------------------------------------------
         return logprob
