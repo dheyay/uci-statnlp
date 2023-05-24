@@ -260,22 +260,17 @@ def top_k_sampling(
 
         # Get probabilities for all the last decoded IDs
         last_id_probs = [cand.last_id_prob for cand in potential_cands]
+        top_k_cands = potential_cands[:top_k]  # Select the top-k candidates
 
-        # ---------------------------------------------------------------------
-        # TODO: finish implementing this part of the while loop to complete
-        # ---------------------------------------------------------------------
-        # Top-k decoding algorithm. To do this, you'll have to:
-        #   * obtain the top-k ``potential_cands`` and ``last_id_probs``
-        #   * Scale `last_id_probs` via temperature-scaling via the
-        #  ``temperature`` parameter
-        # ---------------------------------------------------------------------
-        raise NotImplementedError("TODO: Implement by student")
+        scaled_probs = [prob ** (1 / temperature) for prob in last_id_probs[:top_k]]  # Scale the probabilities
+        scaled_probs_sum = sum(scaled_probs)
+        scaled_probs = [prob / scaled_probs_sum for prob in scaled_probs]
 
-        # ---------------------------------------------------------------------
-        # Sample a candidate based on the probability of it's last ID
-        # random.choices() automatically re-weights the probabilities!
-        cand = random.choices(potential_cands, weights=last_id_probs)[0]
+        for cand, scaled_prob in zip(top_k_cands, scaled_probs):
+            cand.last_id_prob = scaled_prob
 
+        potential_cands = top_k_cands  # Update potential candidates with top-k candidates
+        cand = random.choices(potential_cands, weights=scaled_probs)[0]
     return cand
 
 
@@ -321,24 +316,18 @@ def nucleus_sampling(
         # Get probabilities for all the last decoded IDs
         last_id_probs = [cand.last_id_prob for cand in potential_cands]
 
-        # ---------------------------------------------------------------------
-        # TODO: finish implementing this part of the while loop to complete
-        # ---------------------------------------------------------------------
-        #  nucleus sampling. To do this you will have to:
-        #  * Find where the cutoff point is that satisfies the `top_p`
-        #    threshold (the cands and associated probabilities are already
-        #    sorted so this should be fairly straightforward)
-        #  * Update `potential_cands` and `last_id_probs` by truncating
-        #    everything past this cutoff point.
-        # ---------------------------------------------------------------------
-        raise NotImplementedError("TODO: Implement by student")
+        cumulative_probs = 0.0
+        cutoff_index = 0
+        for i, prob in enumerate(last_id_probs):
+            cumulative_probs += prob
+            if cumulative_probs >= top_p:
+                cutoff_index = i + 1
+                break
 
-        # ---------------------------------------------------------------------
-        #  We have implemented the part of sampling the next candidate given
-        #  the truncated `potential_cands` and `last_id_probs` so you
-        #  shouldn't touch this part of the code.
+        # Truncate potential candidates and last ID probabilities
+        potential_cands = potential_cands[:cutoff_index]
+        last_id_probs = last_id_probs[:cutoff_index]
         cand = random.choices(potential_cands, weights=last_id_probs)[0]
-
     return cand
 
 
@@ -373,26 +362,13 @@ def constrained_decoding(
     # Continue decoding while the number of decoded IDs of the candidate is
     # less than the max length and while the EOS ID has not been generated.
     while not is_cand_finished(cand, max_length, eos_id):
-        # ---------------------------------------------------------------------
-        # TODO: finish implementing this part of the while loop to complete
-        # ---------------------------------------------------------------------
-        #  constrained decoding sampling. To do this you will have to:
-        #   * Obtain the log probability distribution of the next words given
-        #     the decoded_ids. (Hint: use get_next_cands)
-        #   * Obtain the index/dimension for each word in ``constraints_list``
-        #     (Hint: use model.word2id)
-        #   * Remove candidate generations that concern words in the
-        #     ``constraints_list``. In this case, it will be indices.
-        #     (Hint: filter out the candidate generations obtained in 1)
-        #   * Sort by the log probability of the remaining options and name it
-        #     potential_cands.
-        # ---------------------------------------------------------------------
-        raise NotImplementedError("TODO: Implement by student")
+        potential_cands = cand.get_next_cands(model)
+        constraint_idx = [model.word2id(word) for word in constraints_list]
+        potential_cands = [cand for cand in potential_cands if cand.last_decoded_id not in
+                           constraint_idx]
+        potential_cands = sorted(potential_cands, key=lambda x:x.last_id_prob, reverse=True)
 
-        # ---------------------------------------------------------------------
-        #  We have implemented the part of sampling the next candidate given
-        #  the truncated `potential_cands` and `last_id_probs` so you
-        #  shouldn't touch this part of the code.
+        last_id_probs = [cand.last_id_prob for cand in potential_cands]
         cand = random.choices(potential_cands, weights=last_id_probs)[0]
     return cand
 
@@ -425,26 +401,17 @@ def constrained_decoding_no_repetition(
     # Continue decoding while the number of decoded IDs of the candidate is
     # less than the max length and while the EOS ID has not been generated.
     while not is_cand_finished(cand, max_length, eos_id):
-        # ---------------------------------------------------------------------
-        # TODO: finish implementing this part of the while loop to complete
-        # ---------------------------------------------------------------------
-        #  constrained decoding sampling. To do this you will have to:
-        #   * Obtain the log probability distribution of the next words given
-        #     the decoded_ids. (Hint: use get_next_cands)
-        #   * Use the previously decoded_ids as the ``constraints_list``
-        #     (from the previous method)
-        #   * Remove candidate generations that concern words in this
-        #     ``constraints_list``. In this case, it will be indices.
-        #     (Hint: filter out the candidate generations obtained in 1)
-        #   * Sort by the log probability of the remaining options and name it
-        #     potential_cands.
-        # ---------------------------------------------------------------------
-        raise NotImplementedError("TODO: Implement by student")
+        potential_cands = cand.get_next_cands(model)
 
-        # ---------------------------------------------------------------------
-        #  We have implemented the part of sampling the next candidate given
-        #  the truncated `potential_cands` and `last_id_probs` so you
-        #  shouldn't touch this part of the code.
+        potential_cands = [candidate for candidate in potential_cands if candidate.last_decoded_id not in
+                           decoded_ids]
+
+        potential_cands = [candidate for candidate in potential_cands
+                           if candidate.last_decoded_id not in cand.decoded_ids]
+
+        potential_cands = sorted(potential_cands, key=lambda x:x.last_id_prob, reverse=True)
+
+        last_id_probs = [cand.last_id_prob for cand in potential_cands]
         cand = random.choices(potential_cands, weights=last_id_probs)[0]
     return cand
 

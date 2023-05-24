@@ -39,15 +39,11 @@ class InterpNgram(LangModel):
 
     def cond_logprob(self, word: str, context: List[str]) -> float:
         context = self.model.get_context(context)
-        cur_model_word_context = self.model.counts[context].get(word, None)
         cur_context_count = self.model.counts_totals.get(context, None)
-        if cur_model_word_context is None: cur_model_word_context = 0
-
         if cur_context_count is None:
             cur_model_prob = math.exp(self.backoff_model.cond_logprob(word, context))
         else:
             cur_model_prob = math.exp(self.model.cond_logprob(word, context))
-
         log_prob = (self.alpha * cur_model_prob) + ((1-self.alpha) * math.exp(self.backoff_model.cond_logprob(word, context)))
         log_prob = math.log(log_prob) if log_prob != 0 else float('-inf')
         return log_prob
